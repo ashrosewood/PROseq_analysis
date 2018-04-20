@@ -85,6 +85,7 @@ if (identical(cols,character(0))){
     df.col           <- read.table(cols,sep="\t", header=TRUE,  comment.char = "")
     rownames(df.col) <- paste(df.col$sample)
     Cols             <- paste(df.col[gsub(".df|.3prime|.36bp", "", SAMPLES), "color"])
+    Cols
 }
 
 pdf(file=sub("$", ".metaGenePlot.pdf", outName),width=8,height=5)

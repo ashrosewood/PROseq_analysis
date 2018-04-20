@@ -14,7 +14,6 @@ help <- function(){
     cat("--plusBw      : bigWigFile for plus strand                                    [required]\n")
     cat("--minusBw     : bigWigFile for minus strand                                   [required]\n")    
     cat("--assembly    : genome assembly build (ex. hg19, dm3)                         [default = hg19]\n")    
-    cat("--bwFile      : path to bigWig File                                           [required]\n")
     cat("--numCores    : number of cores to use                                        [default = 10 ]\n")
     cat("--outName     : prefix to your out file names (No .extention)                 [default = basename(bigWigFile) ]\n")
     cat("--tssMax      : use the max postion of coverage in the annotated tss (0/1)     [default = 0; use annotated ]\n")
@@ -75,7 +74,7 @@ if (identical(assembly,character(0))){
 }
 
 if (identical(outName,character(0))){
-   outName <- sub(".bw", "", basename(bwFile))
+   outName <- sub(".plus.bw", "", basename(plusBw))
 }
 
 if (identical(upStream,character(0))){

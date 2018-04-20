@@ -44,15 +44,17 @@ library(ggplot2)
 ###############################
 ## calculate pausing index
 ###############################
+df           <- read.delim(tab)
 
-df           <- read.table(tab, sep='\t', header=TRUE)
+#df           <- read.table(tab, sep='\t', header=TRUE)
 rownames(df) <- paste(df$tx_name)
-
+nrow(df)
 Tss          <- df[ , grep("tss$", names(df)) ]
 Body         <- df[ , grep("body$", names(df)) ]
 
 ## be sure they are in the same order
 Order        <- sub( "_tss", "", names(Tss) )
+Order
 Tss.or       <- Tss[ , paste(Order,"tss", sep="_") ]
 Body.or      <- Body[ , paste(Order,"body", sep="_") ]
 
@@ -86,7 +88,7 @@ if (identical(cols,character(0))){
 }else{
     df.col           <- read.table(cols,sep="\t", header=TRUE, comment.char = "")
     rownames(df.col) <- paste(df.col$sample)
-    Cols             <- paste(df.col[Order, "color"])
+    Cols             <- paste(df.col[sub(".3prime", "", Order), "color"])
 }
 
 if(!(file.exists( dirname(outName) ))) {
