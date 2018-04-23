@@ -7,8 +7,6 @@ help <- function(){
  
     cat("Usage: \n")
     cat("--regions     : GenomicRanges or bed object with the transcripts of interest   [required]\n")
-    cat("--type        : Peaks, Tss, or Tes                                             [required]\n")
-    cat("--window      : total size of region around types above (use for type = Peaks) [default = 0]\n")
     cat("--upStream    : distance upstream of the region to take (use for Tss and Tes)  [default = 50]\n")
     cat("--downStream  : distance downstream of the region to take (use for Tss and Tes)[default = 50]\n")
     cat("--assembly    : genome assembly build (ex. hg19, dm3)                          [default = hg19]\n")
@@ -29,8 +27,6 @@ if( !is.na(charmatch("-h",args)) || !is.na(charmatch("-help",args)) ){
     help()
 } else {
     regions    <- sub( '--regions=', '', args[grep('--regions=', args)] )
-    Type       <- sub( '--type=', '', args[grep('--type=', args)] )
-    Window     <- sub( '--window=', '', args[grep('--window=', args)] )
     upStream   <- sub( '--upStream=', '', args[grep('--upStream=', args)] )
     downStream <- sub( '--downStream=', '', args[grep('--downStream=', args)] )
     assembly   <- sub( '--assembly=', '', args[grep('--assembly=', args)] )
@@ -53,20 +49,6 @@ if (! identical(bwPattern,character(0))){
     bws <- bws[grep(bwPattern,bws,invert=FALSE)]
 }
 bws
-
-## test files
-#setwd("/projects/b1025/arw/analysis/yuki/degrons/DLD1")
-#regions <- "tables/PRO_0h_NELFcAID_DLD_1057.filteredProteinCodingTx.rda"
-#assembly <- "hg19"
-#bwFiles <- "data_proseq"
-#bwPattern <- "NELFcAID_DLD_1057"
-#upStream <- 25
-#downStream <- 25
-#numCores <- 10
-#tssMax <- 1
-#outName <- "plots/pausing_index/PRO_0h_NELFcAID_DLD_1057_Tss25bp"
-#Cores <- 10
-#calcSum <- 1
 
 if (identical(tssMax,character(0))){
    tssMax <- 0
@@ -220,8 +202,6 @@ calcCov <- function(bw,model){
 bwBase            <- unique(sub(".minus.bw|.plus.bw", "", bws))
 avgCov            <- do.call(cbind,mclapply(bwBase, model=Model.win, calcCov, mc.cores=1))
 
-#colnames(avgCov) <- sub("$", paste0("_", Type), colnames(avgCov))
-
 ## combine resized regions and average coverage
 df <- cbind(as.data.frame(Model.win), signif(avgCov, 4))
 
@@ -238,7 +218,6 @@ write.table(df
            ,file=paste0(fname, ".txt")
            ,sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE
             )
-
 
 ###############################
 ## make boxplot
