@@ -11,8 +11,6 @@ help <- function(){
     cat("--upStream   : number of bp upstream of Tss in matrix                          [required]\n")
     cat("--downStream : number of bp upstream of Tss in matrix                          [required]\n")
     cat("--Height     : plot height if you do not want to be set the max                [default = max of colMeans]\n")
-    cat("--Label      : Alternate plot label if not Type (example: Pause_site)          [default = Type]
-                         Type is used to grep the files. If file name match use Type.                   \n")    
     cat("\n")
     q()
 }
@@ -28,11 +26,6 @@ if(length(args)==0 || !is.na(charmatch("-help",args))){
     upStream   <- sub( '--upStream=', '',args[grep('--upStream=',args)])
     downStream <- sub( '--downStream=', '',args[grep('--downStream=',args)])
     Height     <- sub( '--Height=', '',args[grep('--Height=',args)])
-    Label      <- sub( '--Label=', '',args[grep('--Label=',args)])
-}
-
-if (identical(Label,character(0))){
-   Label <- "Tss"
 }
 
 library(RColorBrewer)
@@ -66,14 +59,13 @@ df <- do.call(cbind, lapply(SAMPLES, function(x){
   }
 ))
 df$x <- seq(1,nrow(df))
-print(head(df))
 df.long <- melt(df, id.vars = "x")
 
 mround <- function(x,base){ 
     base*ceiling(x/base) 
 } 
 
-if( max(df[,grep("^x$",names(df),invert=TRUE)]) > 0.5 ){
+if( max(df[,grep("x",names(df),invert=TRUE)]) > 0.5 ){
     Ymax <- mround(ceiling(max(df[,grep("^x$",names(df),invert=TRUE)])),2)
     Min <- 0
 }else{
@@ -101,7 +93,7 @@ print({
     p <-
 
     ggplot(df.long, aes(x=x, y=value, color=variable)) +
-    geom_line(size=0.5)+
+    geom_line(size=1)+
     scale_color_manual("sample", values = Cols )+
     scale_x_continuous(breaks=c(0
                                ,100
@@ -111,15 +103,15 @@ print({
                                ,600
                                 )
                       ,labels=c(paste0("-",upStream)
-                               ,Label
+                               ,"TSS"
                                ,"33%"
                                ,"66%"
                                ,"TES"
                                ,paste0("+", downStream)
                                 ))+
-    ylab("signal")+
+    ylab("r.p.m.")+
     xlab("")+
-    ylim(0,Height)+
+    #ylim(0,Height)+
     ggtitle(basename(outName))+
     theme(panel.grid.major = element_blank()
          ,panel.grid.minor = element_blank(), 

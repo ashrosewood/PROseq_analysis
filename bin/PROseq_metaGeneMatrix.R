@@ -14,6 +14,7 @@ help <- function(){
     cat("--downStream  : how many bases downstream of the Tes                          [default = 2000 ]\n")
     cat("--numCores    : number of cores to use                                        [default = 10 ]\n")
     cat("--outName     : prefix to your out file names (No .extention)                 [default = basename(bigWigFile) ]\n")
+    cat("--tssMax      : use the max postion of coverage in the annotated tss (0/1)    [default = 0; use annotated ]\n")
     cat("\n")
     q()
 }
@@ -28,8 +29,9 @@ if(length(args)==0 || !is.na(charmatch("-help",args))){
     minusBw    <- sub( '--minusBw=', '', args[grep('--minusBw=', args)])
     upStream   <- sub( '--upStream=', '', args[grep('--upStream=', args)] )
     downStream <- sub( '--downStream=', '', args[grep('--downStream=', args)] )
-    Cores     <- sub( '--numCores=', '',args[grep('--numCores=',args)])
-    outName   <- sub( '--outName=', '',args[grep('--outName=',args)])
+    Cores      <- sub( '--numCores=', '',args[grep('--numCores=',args)])
+    outName    <- sub( '--outName=', '',args[grep('--outName=',args)])
+    tssMax     <- sub( '--tssMax=', '',args[grep('--tssMax=',args)])
 
 }
 
@@ -57,6 +59,12 @@ if (identical(assembly,character(0))){
 
 if (identical(outName,character(0))){
    outName <- sub(".bw", "", basename(bwFile))
+}
+
+if (identical(tssMax,character(0))){
+    tssMax <- 0
+}else{
+    tssMax <- as.numeric(tssMax)
 }
 
 print(assembly)
@@ -95,9 +103,25 @@ if (assembly == "dm3") {
     organism <- Dmelanogaster
 }
 
-Model                       <- get(load(regions))
-seqinfo(Model)              <- seqinfo(organism)[seqlevels(Model)]
-seqlevels(Model,force=TRUE) <- seqlevels(Model)[grep("chrM",seqlevels(Model), invert=TRUE)]
+## take annotated or maxTss sites to center
+if ( tssMax== 1 ){
+    print("use max as Tss")
+    maxTss                                                      <- get(load(regions))
+    seqinfo(maxTss)                                             <- seqinfo(organism)[seqlevels(maxTss)]
+    print("fix start")
+    start(maxTss[paste(as.data.frame(maxTss)[,"strand"])=='+']) <- maxTss[paste(as.data.frame(maxTss)[,"strand"])=='+']$tssMaxStart
+    print("fix end")
+    end(maxTss[paste(as.data.frame(maxTss)[,"strand"])=='-'])   <- maxTss[paste(as.data.frame(maxTss)[,"strand"])=='-']$tssMaxStart
+    maxTss$length                                               <- width(maxTss)
+    Model                                                       <- maxTss
+    seqlevels(Model,force=TRUE)                                 <- seqlevels(Model)[grep("chrM",seqlevels(Model), invert=TRUE)]
+}else{
+    print("use annotated Tss")
+    Model                       <- get(load(regions))
+    seqinfo(Model)              <- seqinfo(organism)[seqlevels(Model)]
+    Model$length                <- width(Model)
+    seqlevels(Model,force=TRUE) <- seqlevels(Model)[grep("chrM",seqlevels(Model), invert=TRUE)]
+}
 
 TSS <- promoters(Model, upstream = upStream, downstream = 0)
 TES <- resize(Model, fix = 'end', width = 1)

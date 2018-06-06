@@ -13,6 +13,8 @@ help <- function(){
     cat("--Height     : plot height will be set the same for plus and minus             [default = max of sense and min of anti]\n")
     cat("--upStream   : number of bp upstream of Tss in matrix                          [required]\n")
     cat("--downStream : number of bp downstream of Tss in matrix                        [required]\n")
+    cat("--Label      : Alternate plot label if not Type (example: Pause_site)          [default = Type]
+                         Type is used to grep the files. If file name match use Type.                   \n")
     cat("\n")
     q()
 }
@@ -30,6 +32,7 @@ if(length(args)==0 || !is.na(charmatch("-help",args))){
     Height     <- sub( '--Height=', '',args[grep('--Height=',args)])
     upStream   <- as.numeric( sub( '--upStream=', '',args[grep('--upStream=',args)]) )
     downStream <- as.numeric( sub( '--downStream=', '',args[grep('--downStream=',args)]) )
+    Label      <- sub( '--Label=', '',args[grep('--Label=',args)])
 }
 
 ## for testing
@@ -58,6 +61,12 @@ if (identical(bins,character(0))){
 if (identical(Type,character(0))){
    Type <- "Tss"
 }
+
+if (identical(Label,character(0))){
+   Label <- Type
+}
+
+print(Pattern)
 
 Dir
 foo <- list.files(Dir, pattern=".rda", full.names=TRUE)
@@ -110,7 +119,7 @@ if (identical(Height, character(0))){
     Height <- Ymax
 }else{
     Height <- as.numeric(Height)
-    Min <- as.numeric(Height)
+    #Min <- as.numeric(Height)
 }
 
 ## if we want to plot lower values first must factor and reorder the colors
@@ -134,9 +143,10 @@ if(!(file.exists( dirname(outName) ))) {
 }
 
 Labels <- c(paste0("-",upStream)
-           ,Type
+           ,Label
            ,paste0("+", downStream))
 
+print(Labels)
 
 if(bins==0){
     Breaks <- c(0
@@ -158,7 +168,7 @@ print({
         scale_x_continuous(breaks = Breaks
                           ,labels = Labels
                            )+
-    ylab("r.p.m.")+
+    ylab("signal")+
     xlab("")+
     ylim(Min,Height)+
     ggtitle(basename(outName))+

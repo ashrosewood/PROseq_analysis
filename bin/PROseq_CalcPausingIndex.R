@@ -42,6 +42,18 @@ outName
 bwPattern
 bwFiles
 
+#regions <- "tables/PRO_0h_NELFeAID_DLD_1092.filteredProteinCodingTx.rda"
+#setwd("/projects/b1025/arw/analysis/yuki/degrons/DLD1/")
+#promUp <- 25
+#promDown <- 25
+#numCores <- 10
+#bodyLen=2000
+#tssMax <- 1
+#outName <- "tables/pausing_index/PRO_0h_NELFeAID_DLD_1092_Tss25bp"
+#bwFiles <- "data_proseq"
+#bwPattern <- "PRO.*NELFe.*1092"
+
+
 ## test files
 #regions <- "tables/PRO_0h_Aux_PAF1AID_DLD1_846.filteredProteinCodingTx.rda"
 #assembly <- "hg19"
@@ -169,52 +181,85 @@ if ( tssMax== 1 ){
 ranges(Tss)
 ranges(Body)
 
+names(Tss) <- NULL
+names(Body) <- NULL
+
+### get rid of zombie processes
+library(inline)
+includes <- '#include <sys/wait.h>'
+code <- 'int wstat; while (waitpid(-1, &wstat, WNOHANG) > 0) {};'
+wait <- cfunction(body=code, includes=includes, convention='.C')
+
+#for (iter in 1:T) {
+#  res[iter] = mclapply(1:10, fun)
+#  wait()
+#}
+
+
 ###############################
 ## calc average coverage in tss and body regions
 ###############################
 calcCov <- function(bw,model){
-    basename(bw)
+    print(basename(bw))
+    print("import plus strand")
     plus      <- import.bw(paste0(bw, ".plus.bw"),  RangedData=FALSE,selection = BigWigSelection(model))
+    print("import minus strand")
     minus     <- import.bw(paste0(bw, ".minus.bw"), RangedData=FALSE,selection = BigWigSelection(model))
+    print("calc cov for plus strand")
     plus.cov  <- coverage(plus, weight='score')
-    minus.cov <- coverage(minus, weight='score') *-1    
+    print("calc cov for minus strand")
+    minus.cov <- coverage(minus, weight='score') *-1
+    print("calc average cov for genes")
     mean.cov  <- with(as.data.frame(model),{
-        mcmapply(function(seqname,start,end,strand){
+        mcmapply(function(Seqname,start,end,strand){
             if(strand == '-'){
-                signif(mean(minus.cov[[seqname]][start:end]))
+                signif(mean(minus.cov[[Seqname]][start:end]))
             }else{
-                signif(mean(plus.cov[[seqname]][start:end]))
+                signif(mean(plus.cov[[Seqname]][start:end]))
             }
         }   
        ,mc.cores=Cores
        ,as.character(seqnames),start,end,as.character(strand))
-    })       
+    })
+    print("convert to data frame")
     mean.cov           <- data.frame(mean.cov)
+    print("add gene name")
     rownames(mean.cov) <- model$gene_id
+    print("add column name")
     colnames(mean.cov) <- sub(".bw", "", basename(bw))
     mean.cov
 }
 
 bwBase            <- unique(sub(".minus.bw|.plus.bw", "", bws))
-tssCov            <- do.call(cbind, mclapply(bwBase, model=Tss, calcCov, mc.cores=1))
-bodyCov           <- do.call(cbind, mclapply(as.list(bwBase), model=Body, calcCov, mc.cores=1))
+print("calc tssCov")
+tssCov            <- do.call(cbind, lapply(bwBase, model=Tss, calcCov))
+#tssCov            <- do.call(cbind, mclapply(bwBase, model=Tss, calcCov, mc.cores=1, mc.preschedule=FALSE))
+print("calc bodyCov")
+bodyCov           <- do.call(cbind, lapply(bwBase, model=Body, calcCov))
+#bodyCov           <- do.call(cbind, mclapply(bwBase, model=Body, calcCov, mc.cores=1, mc.preschedule=FALSE))
 
+print("fix the column names")
 colnames(tssCov)  <- sub("$", "_tss",  colnames(tssCov))
 colnames(bodyCov) <- sub("$", "_body", colnames(bodyCov))
 
 stopifnot(rownames(tssCov)==rownames(bodyCov))
 
 ## combine tss and body dataframes
+print("combine data frames")
 df <- cbind(as.data.frame(gnModel), tssCov, bodyCov)
 
+print("check the directories")
 if(!(file.exists( dirname(outName) ))) {
     print(paste("mkdir", dirname(outName)))
     dir.create(dirname(outName),FALSE,TRUE)  
 }
 
 ## save the gnModel as a granges object and a tab delimited file
+print("write table")
 write.table(df
            ,file=paste0(outName, ".pausingIndexAverageCoverages.txt")
            ,sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE
             )
 
+
+print("done")

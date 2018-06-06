@@ -193,7 +193,8 @@ gnModel$tx_biotype         <- anno[iv, "transcript_biotype"]
 gnModel$refseq_mrna        <- anno[iv, "refseq_mrna"]
 
 ## filter for only protein coding with refseq mrna id
-gnModel <- gnModel[!is.na(gnModel$refseq_mrna) & gnModel$tx_biotype=="protein_coding" & gnModel$gene_biotype=="protein_coding"]
+gnModel <- gnModel[!gnModel$refseq_mrna =="NA" & gnModel$tx_biotype=="protein_coding" & gnModel$gene_biotype=="protein_coding"]
+#gnModel <- gnModel[!is.na(gnModel$refseq_mrna) & gnModel$tx_biotype=="protein_coding" & gnModel$gene_biotype=="protein_coding"]
 
 length(gnModel)
 ## not the same
@@ -248,8 +249,11 @@ gnModel    <- gnModel.or[!reps]
 dists                     <- as.data.frame( distanceToNearest(gnModel, ignore.strand=TRUE) )
 gnModel$distanceToNearest <- dists$distance
 
-dists                     <- as.data.frame( distanceToNearest(gnModel, ignore.strand=FALSE) )
-gnModel$distanceToNearestStranded <- dists$distance
+dists                             <- as.data.frame( distanceToNearest(gnModel, ignore.strand=FALSE) )
+
+
+gnModel$distanceToNearestStranded                  <- "NA"
+gnModel[dists$queryHits]$distanceToNearestStranded <- dists$distance
 
 ###########################################
 ## Filter for tss's with peaks if provided
