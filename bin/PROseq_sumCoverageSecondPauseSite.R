@@ -2,14 +2,18 @@ args <- commandArgs()
 
 help <- function(){
     cat("PROseq_sumCoverageSecondPauseSite.R :
-- From a provided GRnages sum the coverage downstream of the max for a set number of bases while excluding the max position.
+- From a provided GRnages sum the coverage downstream of the max for a set number of bases while excluding a set number of positions
+\t after the max position. The total range used will downStream - tssMaxDown. tssMaxDown must be < downStream.
 - GRanges object must have a tssMaxStart column to reposition ranges to.
-- We are excluding the maximum position, so it will not be included in the sum
-- You will be returned a table with the ranges, sums and fold changes and a boxplot.\n")
+- You can exclude maximum position and a number of bases after the tssMax, so it will not be included in the sum
+- You will be returned a table with the ranges, sums and fold changes and a boxplot.
+- Both tssMaxDown and downStream will be appended to the end of outName.\n")
  
     cat("Usage: \n")
     cat("--regions    : GenomicRanges or bed object with the transcripts of interest   [required]\n")
-    cat("--downStream : distance downstream of the tssMax site to sum the coverage     [default = 50]\n")
+    cat("--tssMaxDown : distance downstream of the tssMax to start coverage sum        [default = 10]
+                           use 0 if you wish to include the tssMax                                    \n")
+    cat("--downStream : distance downstream of the tssMax to end coverage sum          [default = 100]\n")
     cat("--assembly   : genome assembly build (ex. hg19, dm3)                          [default = hg19]\n")
     cat("--bwFiles    : path to bigWig Files                                           [required]\n")
     cat("--bwPattern  : grep pattern for bigWigs to use quotes (ex. PolII.*293T)       [default = all .bw in path]\n")
@@ -17,7 +21,7 @@ help <- function(){
                           relative to (No .minus.bw or .plus.bw extension)                                         \n")
     cat("--numCores   : number of cores to use                                         [default = 10 ]\n")
     cat("--outName    : prefix to your out file names (No .extension)                  [required]\n")
-    cat("--Cols       : table of colors for box plot (need a sample and color column)  [default = rainbow(n)]\n")
+    cat("--cols       : table of colors for box plot (need a sample and color column)  [default = rainbow(n)]\n")
     cat("\n")
     q()
 }
@@ -27,6 +31,7 @@ if( !is.na(charmatch("-h",args)) || !is.na(charmatch("-help",args)) ){
     help()
 } else {
     regions    <- sub( '--regions=', '', args[grep('--regions=', args)] )
+    tssMaxDown <- sub( '--tssMaxDown=', '', args[grep('--tssMaxDown=', args)] )
     downStream <- sub( '--downStream=', '', args[grep('--downStream=', args)] )
     assembly   <- sub( '--assembly=', '', args[grep('--assembly=', args)] )
     bwFiles    <- sub( '--bwFiles=', '', args[grep('--bwFiles=', args)])
@@ -34,14 +39,8 @@ if( !is.na(charmatch("-h",args)) || !is.na(charmatch("-help",args)) ){
     Control    <- sub( '--Control=', '', args[grep('--Control=', args)])
     Cores      <- sub( '--numCores=', '',args[grep('--numCores=',args)])
     outName    <- sub( '--outName=', '',args[grep('--outName=',args)])
+    cols       <- sub( '--cols=', '',args[grep('--cols=',args)])
 }
-
-bws <- list.files(bwFiles,pattern=".bw", full.names=TRUE)
-## if no pattern it will keep them all
-if (! identical(bwPattern,character(0))){
-    bws <- bws[grep(bwPattern,bws,invert=FALSE)]
-}
-bws
 
 if (identical(Cores,character(0))){
    Cores <- 10
@@ -53,23 +52,38 @@ if (identical(assembly,character(0))){
    assembly <- "hg19"
 }
 
+if (identical(tssMaxDown,character(0))){
+    print("tssMaxDown not provided use 50bp")
+    tssMaxDown <- 10
+}else{
+    print(paste("tssMaxDown provided as", tssMaxDown))
+    tssMaxDown <- as.numeric(tssMaxDown)
+}
+
 if (identical(downStream,character(0))){
     print("downStream not provided use 50bp")
-    downStream <- 50
+    downStream <- 100
 }else{
     downStream <- as.numeric(downStream)
     print(paste("downStream provided as", downStream))
 }
 
 cat("regions:", regions, sep="\n")
+cat("tssMaxDown:", tssMaxDown, sep="\n")
+cat("downStream:", downStream, sep="\n")
 cat("outName:", outName, sep="\n")
 cat("bwPattern:", bwPattern, sep="\n")
 cat("bwFiles:", bwFiles, sep="\n")
 cat("Control:", Control, sep="\n")
-cat("downStream:", downStream, sep="\n")
 cat("assembly:", assembly, sep="\n")
 
-print(assembly)
+bws <- list.files(bwFiles,pattern=".bw", full.names=TRUE)
+## if no pattern it will keep them all
+if (! identical(bwPattern,character(0))){
+    bws <- bws[grep(bwPattern,bws,invert=FALSE)]
+}
+bws
+
 if ((assembly == "hg19") || (assembly == "hg38")) { organismStr <- "Hsapiens"
     species <- "Homo sapiens"}
 if ((assembly == "mm9") || (assembly == "mm10")) { organismStr <- "Mmusculus"
@@ -116,19 +130,29 @@ if( length(grep(".bed$", regions)) > 0 ){
 }
 
 ## define TSS
-
 print("use max as Tss")
 maxTss                                                      <- Model
-print("fix start and remove first position")
-start(maxTss[paste(as.data.frame(maxTss)[,"strand"])=='+']) <- maxTss[paste(as.data.frame(maxTss)[,"strand"])=='+']$tssMaxStart + 1 
+print(paste("fix start to tssMaxStart"))
+start(maxTss[paste(as.data.frame(maxTss)[,"strand"])=='+']) <- maxTss[paste(as.data.frame(maxTss)[,"strand"])=='+']$tssMaxStart 
 print("fix end and remove first position")
-end(maxTss[paste(as.data.frame(maxTss)[,"strand"])=='-'])   <- maxTss[paste(as.data.frame(maxTss)[,"strand"])=='-']$tssMaxStart - 1
-print("define tss")
+end(maxTss[paste(as.data.frame(maxTss)[,"strand"])=='-'])   <- maxTss[paste(as.data.frame(maxTss)[,"strand"])=='-']$tssMaxStart 
+
+##
+print("take window 0,100 at tssMax")
 Model.win                                                   <- promoters(maxTss ,upstream=0 ,downstream=downStream)
-fname                                                       <- sub("$", paste0("_sumCovMaxPlus1_down", downStream), outName)
+print(ranges(Model.win))
+
+##
+print(paste("trim off the first", tssMaxDown, "bases"))
+Model.win                                                   <-  resize(Model.win, fix='end',width=width(Model.win) - tssMaxDown )
+print(ranges(Model.win))
+
+##
+fname                                                       <- sub("$", paste0("_sumCovMaxPlus",tssMaxDown, "_down", downStream), outName)
 ranges(Model.win)
 
-## make sure the output directory exists 
+## make sure the output directory exists
+print("make directory for output file if it does not exist.")
 Dir <- dirname(outName)
 if(!(file.exists(Dir))) {
     dir.create(Dir,FALSE,TRUE)  
@@ -189,20 +213,13 @@ names(avgCov) <- sub("$", "_sum", names(avgCov))
 ## combine resized regions and average coverage
 df <- cbind(as.data.frame(Model.win), signif(avgCov, 4), signif(fc, 4))
 
-print("make directory for output file if it does not exist.")
-if(!(file.exists( dirname(outName) ))) {
-    print(paste("mkdir", dirname(outName)))
-    dir.create(dirname(outName),FALSE,TRUE)  
-}
-
-
 write.table(df
            ,file=paste0(fname, ".txt")
            ,sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE
             )
 
 ###############################
-## make boxplot
+## make boxplots
 ###############################
 library(RColorBrewer)
 library(viridis)
@@ -210,6 +227,7 @@ library(reshape2)
 library(ggplot2)
 library(ggsignif)
 
+## log2FC
 print("make fold change boxplot")
 
 df.long          <- melt(fc)
@@ -225,14 +243,6 @@ if (identical(cols,character(0))){
     Cols             <- paste(df.col[sub(".df", "", SAMPLES), "color"])
 }
 
-#minMax <- do.call(rbind, lapply(1:ncol(avgCov), function(x){
-#     iQr  <- IQR(avgCov[,x])
-#     Ymax <- round(as.numeric(quantile(avgCov[, x])[4] + 1.5 * iQr) *1.05)
-#     Ymin <- floor(as.numeric(quantile(avgCov[, x])[2] - 1.5 * iQr) *1.05)
-#     cbind(Ymin, Ymax)
-#}
-#))
-
 minMax <- apply(fc, 2, function(x)boxplot.stats(x)$stats[c(1, 5)])
 
 mround <- function(x,base){ 
@@ -242,9 +252,7 @@ mround <- function(x,base){
 Ymin <- mround(min(minMax)-0.25, 0.5)
 Ymax <- mround(max(minMax)+0.25, 0.5)
 
-
-
-pdf(file=sub("$", ".boxPlot.pdf", fname),width=6,height=5)
+pdf(file=sub("$", ".boxPlotFC.pdf", fname),width=6,height=5)
 print({
     p <-
     ggplot(df.long, aes(x=variable, y=value, fill=variable)) + 
@@ -253,10 +261,43 @@ print({
         theme_classic() +
         scale_fill_manual("sample", values=Cols)+
         #coord_cartesian(ylim = c(Ymin, Ymax)) +
-        ylab( "log2( Coverage Sum )" ) + 
+        ylab( "log2( Coverage Sum FC )" ) + 
     xlab("") +
     scale_y_continuous(limits=c(Ymin, Ymax), breaks=scales::pretty_breaks(n = Ymax-Ymin))+#, breaks=seq(Ymin,Ymax, by=0.5))+
-        ggtitle( paste( downStream, "downstream Pause Site" ) ) +
+        ggtitle( paste( tssMaxDown, "downstream Pause Site to plus", downStream ) ) +
+        theme(text = element_text(size=8),
+              axis.text.x = element_blank(),
+              axis.text.y = element_text(color="black",size=8),
+              plot.title=element_text(size=8))
+})
+dev.off()
+
+## avgCov
+print("make average coverage boxplot")
+
+df.long          <- melt(avgCov + pseudo)
+df.long$variable <- sub("_sum", "", df.long$variable)
+
+df.long$variable <-factor(df.long$variable, levels=SAMPLES, ordered = TRUE)
+
+minMax <- apply(log10(avgCov+pseudo), 2, function(x)boxplot.stats(x)$stats[c(1, 5)])
+
+Ymin <- mround(min(minMax)-0.25, 0.5)
+Ymax <- mround(max(minMax)+0.25, 0.5)
+
+pdf(file=sub("$", ".boxPlotSum.pdf", fname),width=6,height=5)
+print({
+    p <-
+    ggplot(df.long, aes(x=variable, y=log10(value), fill=variable)) + 
+    stat_boxplot(geom ='errorbar')+
+    geom_boxplot(notch=TRUE,outlier.colour=NA) +
+    theme_classic() +
+    scale_fill_manual("sample", values=c("white", Cols))+
+    #coord_cartesian(ylim = c(Ymin, Ymax)) +
+    ylab( "log10( Coverage Sum )" ) + 
+    xlab("") +
+    scale_y_continuous(limits=c(Ymin, Ymax), breaks=scales::pretty_breaks(n = Ymax-Ymin))+#, breaks=seq(Ymin,Ymax, by=0.5))+
+        ggtitle( paste( tssMaxDown, "downstream Pause Site to plus", downStream ) ) +
         theme(text = element_text(size=8),
               axis.text.x = element_blank(),
               axis.text.y = element_text(color="black",size=8),

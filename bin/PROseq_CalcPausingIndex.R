@@ -42,31 +42,6 @@ outName
 bwPattern
 bwFiles
 
-#regions <- "tables/PRO_0h_NELFeAID_DLD_1092.filteredProteinCodingTx.rda"
-#setwd("/projects/b1025/arw/analysis/yuki/degrons/DLD1/")
-#promUp <- 25
-#promDown <- 25
-#numCores <- 10
-#bodyLen=2000
-#tssMax <- 1
-#outName <- "tables/pausing_index/PRO_0h_NELFeAID_DLD_1092_Tss25bp"
-#bwFiles <- "data_proseq"
-#bwPattern <- "PRO.*NELFe.*1092"
-
-
-## test files
-#regions <- "tables/PRO_0h_Aux_PAF1AID_DLD1_846.filteredProteinCodingTx.rda"
-#assembly <- "hg19"
-#bwFiles <- "data_proseq"
-#bwPattern <- "Aux_PAF1AID_DLD1_846"
-#promUp <- 5
-#promDown <- 5
-#numCores <- 10
-#bodyLen <- 2000
-#tssMax <- 1
-#outName <- "tables/pausing_index/PROseq_Aux_PAF1AID_DLD1_846_Tss10bp"
-#Cores <- 10
-
 ## select all bigWig files
 bws <- list.files(bwFiles,pattern=".bw", full.names=TRUE)
 ## if no pattern it will keep them all
