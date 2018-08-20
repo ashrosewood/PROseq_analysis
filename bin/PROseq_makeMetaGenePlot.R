@@ -48,7 +48,7 @@ foo
 ## load files and assign to file name
 for (i in 1:length(foo))
 {
-    oname = gsub(".metaGene.rda",".df",basename(foo[i]))
+    oname = gsub(".metaGene.rda|.tssMax.metaGene.rda",".df",basename(foo[i]))
     oname <- gsub("-","_",oname)
     df <- get(load(foo[i]))
     colnames(df) <- paste(sub(".df", "", oname), 1:ncol(df), sep=".")
