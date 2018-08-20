@@ -43,21 +43,6 @@ if(length(args)==0 || !is.na(charmatch("-help",args))){
     minTssMaxCpm <- sub( '--minTssMaxCpm=', '',args[grep('--minTssMaxCpm=',args)])
 }
 
-## for testing purposes
-#txdbFile         <- "/projects/b1025/arw/anno/hg19/hg19_ucsc_refGene.txdb"
-#txdbFile         <- "/projects/p20742/anno/Txdb/hsapiens_gene_ensembl_Ens75.txdb"
-#plusBw           <- "/projects/b1025/arw/analysis/fei/paf1/data_proseq/PRO_0h_Aux_PAF1AID_DLD1_846.plus.bw"
-#minusBw          <- "/projects/b1025/arw/analysis/fei/paf1/data_proseq/PRO_0h_Aux_PAF1AID_DLD1_846.minus.bw"
-#peakFile         <- "/projects/b1025/tango/TANGO-817/TANGO-817/peaks/293-DMSO-PolIIrep1.macsPeaks.bed" 
-#assembly         <- "hg19"
-#txTssDown        <- 500
-#minLength        <- 3000
-#minDist          <- 1000
-#Cores            <- 10
-#outName          <- "tables/PRO_0h_Aux_PAF1AID_DLD1_846tss500"
-#minTssMaxCpm <- 5
-#minTssSumCov <- 100
-
 if (identical(txTssDown,character(0))){
    minTssMaxCpm <- 5
 }else{
@@ -99,7 +84,7 @@ if (identical(assembly,character(0))){
 }
 
 if (identical(outName,character(0))){
-   outName <- sub(".bw", "", basename(bwFile))
+   outName <- sub(".plus.bw", "", basename(plusBw))
 }
 
 print(assembly)
@@ -171,11 +156,11 @@ seqlevels(txdb) <- sub("MT","M", seqlevels(txdb))
 seqlevels(txdb) <- sub("Mito","M", seqlevels(txdb))
 
 ## toss chrY and chrM
-seqlevels(txdb,force=TRUE) <- seqlevels(txdb)[grep("chrY|chrM",seqlevels(txdb), invert=TRUE)]
-
 if(length(grep("^chr",seqlevels(txdb)))==0){
     seqlevels(txdb) <- sub("^","chr", seqlevels(txdb))
 }
+
+seqlevels(txdb,force=TRUE) <- seqlevels(txdb)[grep("chrY|chrM",seqlevels(txdb), invert=TRUE)]
 
 ## make gnModel to combine with counts for only looking at the browser
 ## rpkms if calculated with need to use the exons below
@@ -193,11 +178,9 @@ gnModel$tx_biotype         <- anno[iv, "transcript_biotype"]
 gnModel$refseq_mrna        <- anno[iv, "refseq_mrna"]
 
 ## filter for only protein coding with refseq mrna id
-gnModel <- gnModel[!gnModel$refseq_mrna =="NA" & gnModel$tx_biotype=="protein_coding" & gnModel$gene_biotype=="protein_coding"]
-#gnModel <- gnModel[!is.na(gnModel$refseq_mrna) & gnModel$tx_biotype=="protein_coding" & gnModel$gene_biotype=="protein_coding"]
-
+gnModel <- gnModel[!gnModel$refseq_mrna =="NA" & !is.na(gnModel$refseq_mrna) & gnModel$tx_biotype=="protein_coding" & gnModel$gene_biotype=="protein_coding"]
+seqlevels(gnModel,force=TRUE) <- seqlevels(gnModel)[grep("chrY|chrM",seqlevels(gnModel), invert=TRUE)]
 length(gnModel)
-## not the same
 
 ###########################################
 ## pick the mosth highly occupied transcript tss
@@ -287,7 +270,6 @@ TSS            <- promoters(gnModel, upstream=1, downstream=txTssDown)
 TSS$gene_id    <- names(TSS)
 names(TSS)     <- NULL
 head(ranges(TSS))
-
 
 getMax <- function(model){
     plus      <- import.bw(plusBw,RangedData=FALSE,selection = BigWigSelection(model))
