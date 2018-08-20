@@ -35,17 +35,6 @@ if(length(args)==0 || !is.na(charmatch("-help",args))){
     Label      <- sub( '--Label=', '',args[grep('--Label=',args)])
 }
 
-## for testing
-#setwd("/projects/b1025/arw/analysis/yuki/degrons/DLD1/")
-#Pattern <- "PRO.*NELFcAID_DLD_1057_Tssup50down100bins0"
-#Dir     <- "tables/heatmaps"
-#outName <- "test"
-#cols <- "tables/plotCols/PRO_1057_colors.txt"
-#Type <- "Tss"
-#bins <- 0
-#upStream <- 50
-#downStream <- 100
-
 library(RColorBrewer)
 library(viridis)
 library(reshape2)
@@ -77,7 +66,7 @@ foo
 ## load files and assign to file name
 for (i in 1:length(foo))
 {
-    oname = sub( "rda", "df", gsub("_Tss.*[0-9]|_Tes.*[0-9]|_Peak.*[0-9]","",basename(foo[i])) )
+    oname = sub( "rda", "df", gsub("_Tss.*[0-9]|_Tes.*[0-9]|_Peak.*[0-9]|.rpm|.spikeNorm","",basename(foo[i])) )
     oname <- gsub("-","_",oname)
     df <- get(load(foo[i]))
     print(oname)
@@ -119,7 +108,7 @@ if (identical(Height, character(0))){
     Height <- Ymax
 }else{
     Height <- as.numeric(Height)
-    #Min <- as.numeric(Height)
+    Min <- -as.numeric(Height)
 }
 
 ## if we want to plot lower values first must factor and reorder the colors
