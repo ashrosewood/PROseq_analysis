@@ -4,17 +4,21 @@ help <- function(){
     cat("PROseq_metaGeneMatrix.R :
 - From a provided GRnages obnject of genes of interest make metaGene matrix of defined windows of upstream of the TSS
   and down stream the Tes.
-- This script is for strand separated bigWigs. Only the coverage on the same strand as the gene is used (sense strand).\n")
+- This script is for strand separated bigWigs. Only the coverage on the same strand as the gene is used (sense strand).
+- By default it approximates the body length to 400 positions and up and downstream to 100 (table has 600 columns).
+- If Bins are provided, it will multiply these approx lengths by these bins, so the resulting table is still 600 columns. \n")
     cat("Usage: \n")
-    cat("--regions     : GenomicRanges object with the transcripts of interest         [required]\n")
-    cat("--assembly    : genome assembly build (ex. hg19, dm3)                         [default = hg19 ]\n")    
-    cat("--plusBw      : bigWigFile for plus strand                                    [required]\n")
-    cat("--minusBw     : bigWigFile for minus strand                                   [required]\n")    
-    cat("--upStream    : how many bases upstream of the Tss                            [default = 2000 ]\n")
-    cat("--downStream  : how many bases downstream of the Tes                          [default = 2000 ]\n")
-    cat("--numCores    : number of cores to use                                        [default = 10 ]\n")
-    cat("--outName     : prefix to your out file names (No .extention)                 [default = basename(bigWigFile) ]\n")
-    cat("--tssMax      : use the max postion of coverage in the annotated tss (0/1)    [default = 0; use annotated ]\n")
+    cat("--regions     : GenomicRanges object with the transcripts of interest           [required]\n")
+    cat("--assembly    : genome assembly build (ex. hg19, dm3)                           [default = hg19 ]\n")    
+    cat("--plusBw      : bigWigFile for plus strand                                      [required]\n")
+    cat("--minusBw     : bigWigFile for minus strand                                     [required]\n")    
+    cat("--upStream    : how many bases upstream of the Tss                              [default = 2000 ]\n")
+    cat("--downStream  : how many bases downstream of the Tes                            [default = 2000 ]\n")
+    cat("--numCores    : number of cores to use                                          [default = 10 ]\n")
+    cat("--outName     : prefix to your out file names (No .extention)                   [default = basename(bigWigFile) ]\n")
+    cat("--tssMax      : use the max postion of coverage in the annotated tss (0/1)      [default = 0; use annotated ]\n")
+    cat("--Bins        : Number of bins to take the average coverage after approximating [default = 1; no binning ]
+                            genes to the same length.                                                                 \n")
     cat("\n")
     q()
 }
@@ -32,7 +36,7 @@ if(length(args)==0 || !is.na(charmatch("-help",args))){
     Cores      <- sub( '--numCores=', '',args[grep('--numCores=',args)])
     outName    <- sub( '--outName=', '',args[grep('--outName=',args)])
     tssMax     <- sub( '--tssMax=', '',args[grep('--tssMax=',args)])
-
+    Bins       <- sub( '--tssMax=', '',args[grep('--tssMax=',args)])
 }
 
 if (identical(upStream,character(0))){
@@ -65,6 +69,14 @@ if (identical(tssMax,character(0))){
     tssMax <- 0
 }else{
     tssMax <- as.numeric(tssMax)
+}
+
+if (identical(Bins,character(0))){
+    Bins      <- 1
+    ApproxLen <- 400
+}else{
+    Bins      <- as.numeric(Bins)
+    ApproxLen <- 400 * Bins
 }
 
 print(assembly)
@@ -160,14 +172,30 @@ Bin <- function(model,Size){
        ,mc.cores=Cores
        ,as.character(seqnames),start,end,as.character(strand))
     })    
-    Cov           <- as.data.frame(t(Cov))
-    rownames(Cov) <- model$gene_id
-    Cov
+    cov           <- as.data.frame(t(Cov))
+    if( Bins > 1){
+        window.cov <- function(row){
+                window <- as.integer(ncol(cov)/Bins)
+                window.coverage <- lapply(0:(window-1), function(jump)
+                    rowMeans(row[as.numeric(jump*Bins+1):as.numeric((jump*Bins)+Bins)])
+                    )
+                t(as.matrix(unlist(window.coverage)))
+        }
+        win <- mclapply(1:nrow(cov), function(i)
+            window.cov(cov[i,]),mc.cores=Cores)    
+        bin.mat      <- do.call(rbind, mclapply(win, as.numeric, mc.cores=Cores))        
+        df           <- data.frame(bin.mat)
+        rownames(df) <- model$gene_id
+    }else{
+        df           <- cov
+        rownames(df) <- model$gene_id        
+    }
+    df
 }
 
-tssMat  <- Bin(model=TSS,  Size=100)    
-bodyMat <- Bin(model=Body, Size=400)    
-tesMat  <- Bin(model=TES,  Size=100)    
+tssMat  <- Bin(model=TSS,  Size=ApproxLen/4)    
+bodyMat <- Bin(model=Body, Size=ApproxLen)    
+tesMat  <- Bin(model=TES,  Size=ApproxLen/4)    
 
 stopifnot(rownames(tssMat)==rownames(tesMat))
 stopifnot(rownames(tssMat)==rownames(bodyMat))
