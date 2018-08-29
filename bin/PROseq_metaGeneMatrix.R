@@ -36,7 +36,7 @@ if(length(args)==0 || !is.na(charmatch("-help",args))){
     Cores      <- sub( '--numCores=', '',args[grep('--numCores=',args)])
     outName    <- sub( '--outName=', '',args[grep('--outName=',args)])
     tssMax     <- sub( '--tssMax=', '',args[grep('--tssMax=',args)])
-    Bins       <- sub( '--tssMax=', '',args[grep('--tssMax=',args)])
+    Bins       <- sub( '--Bins=', '',args[grep('--Bins=',args)])
 }
 
 if (identical(upStream,character(0))){
